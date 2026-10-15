@@ -79,8 +79,9 @@ nav button{flex:1;border:0;background:none;margin:0 2px;color:var(--mu);padding:
  <div id="cl" style="margin-top:10px"></div></div></section>
 </div>
 
+<section id="v-us" class="hide"><div class="pn"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">کاربران ثبت‌نام‌شده</h2><div class="sp"></div><span class="mu" id="uc"></span></div><input id="uq" placeholder="جستجوی نام کاربری یا ایمیل…" aria-label="جستجوی کاربر" style="margin-bottom:10px"><div id="ul"></div></div></section>
 <div id="bar" class="hide"><div><span id="dt" class="mu">تغییرات ذخیره‌نشده</span><button class="pri" id="sv">ذخیره در سایت</button></div></div>
-<nav><button data-v="dash" aria-pressed="true">داشبورد</button><button data-v="tk" aria-pressed="false">تیکت‌ها</button><button data-v="ct" aria-pressed="false">محتوا</button><button data-v="co" aria-pressed="false">ارزها</button></nav>
+<nav><button data-v="dash" aria-pressed="true">داشبورد</button><button data-v="tk" aria-pressed="false">تیکت‌ها</button><button data-v="ct" aria-pressed="false">محتوا</button><button data-v="co" aria-pressed="false">ارزها</button><button data-v="us" aria-pressed="false">کاربران</button></nav>
 </div>
 <script>
 (function(){
@@ -93,7 +94,7 @@ function show(a){$('login').classList.toggle('hide',a);$('app').classList.toggle
 var C={banner:{on:false,text:'',color:'#0fae78'},hero:{title:'',sub:''},faq:[],hidden:[]},TK=[],TF='all',VIEW='dash',dirty=false;
 var ST={new:'جدید',open:'در حال بررسی',done:'بسته‌شده'};
 function setDirty(v){dirty=v;$('bar').classList.toggle('hide',!(v&&(VIEW==='ct'||VIEW==='co')));}
-function view(v){VIEW=v;['dash','tk','ct','co'].forEach(function(x){$('v-'+x).classList.toggle('hide',x!==v)});
+function view(v){VIEW=v;if(v==='us')loadUs();['dash','tk','ct','co','us'].forEach(function(x){$('v-'+x).classList.toggle('hide',x!==v)});
  document.querySelectorAll('nav button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.v===v)});setDirty(dirty);scrollTo(0,0)}
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){view(b.dataset.v)}});
 $('th').onclick=function(){var r=document.documentElement,n=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=n;try{localStorage.setItem('th',n)}catch(e){}};
@@ -128,6 +129,14 @@ $('ex').onclick=function(){function q(v){return '"'+String(v==null?'':v).replace
  var r=['id,name,contact,status,created,message'].concat(TK.map(function(t){return[t.id,t.name,t.contact,t.status,new Date(t.created).toISOString(),t.message].map(q).join(',')}));
  var u=URL.createObjectURL(new Blob(['\ufeff'+r.join('\n')],{type:'text/csv;charset=utf-8'})),a=h('a',{href:u,download:'tickets.csv'});document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},1000)};
 
+/* users */
+var US=[];function ul(){var L=$('ul'),q=$('uq').value.trim().toLowerCase();L.textContent='';
+ var a=US.filter(function(u){return!q||(u.username+u.email).toLowerCase().indexOf(q)>=0});$('uc').textContent=US.length+' کاربر';
+ if(!a.length){L.textContent='کاربری نیست.';return}
+ a.forEach(function(u){L.appendChild(h('div',{class:'tk'},[h('div',{class:'row'},[h('b',{text:u.username}),h('span',{class:'mu',dir:'ltr',text:u.email}),h('span',{class:'sp'}),
+  h('button',{class:'sm dn',text:'حذف',onclick:function(){if(confirm('کاربر '+u.username+' و هشدارهایش حذف شود؟ تیکت‌هایش می‌ماند.'))api('users?id='+u.id,{method:'DELETE'}).then(function(){US=US.filter(function(x){return x!==u});ul();toast('حذف شد')})}})]),
+  h('div',{class:'mu',text:'ثبت‌نام: '+new Date(u.created).toLocaleDateString('fa-IR')+' · تیکت‌ها: '+u.tickets})]))})}
+function loadUs(){api('users').then(function(a){US=a;ul()}).catch(function(){})}$('uq').oninput=ul;
 /* content */
 var COL=['#0fae78','#2563eb','#e5485a','#f5b50a','#7c3aed'];
 function pv(){var b=$('bp');b.textContent=$('bt').value||'پیش‌نمایش اعلان';b.style.background=$('bc').value;b.style.opacity=$('bo').checked?1:.4;
