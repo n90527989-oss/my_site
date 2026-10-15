@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex"><title>پنل مدیریت</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;800&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f4f7f9;--sf:#fff;--s2:#edf1f4;--ed:#e0e6eb;--ink:#101b25;--mu:#64748a;--ac:#0fae78;--ai:#fff;--dn:#e5485a;color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#080b0e;--sf:#11171c;--s2:#1a2229;--ed:#232d36;--ink:#eaf0f3;--mu:#8a96a2;--ac:#1bc48a;--ai:#04140d;--dn:#ff5c6a;color-scheme:dark}}
+*,*::before,*::after{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.8 "Vazirmatn",Tahoma,sans-serif}
+.w{max-width:900px;margin:0 auto;padding:16px}h1{font-size:1.3rem;margin:0}h2{font-size:1.05rem;margin:0 0 10px}
+.pn{background:var(--sf);border:1px solid var(--ed);border-radius:14px;padding:14px;margin-bottom:12px}
+button{font:inherit;color:var(--ink);cursor:pointer;border:1px solid var(--ed);background:var(--s2);border-radius:10px;padding:6px 14px}
+button.pri{background:var(--ac);border-color:var(--ac);color:var(--ai);font-weight:700}button.dn{color:var(--dn)}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--s2);border:1px solid var(--ed);border-radius:10px;padding:8px 10px;width:100%}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.tabs button[aria-pressed=true]{background:var(--ac);color:var(--ai);border-color:var(--ac)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}.row>*{flex:1 1 140px}.row>button{flex:0 0 auto}
+.tk{border-top:1px solid var(--ed);padding:10px 0}.tk p{margin:4px 0;white-space:pre-wrap}.mu{color:var(--mu);font-size:.82rem}
+.hide{display:none}#msg{min-height:1.6em;margin-top:8px}
+</style></head><body><div class="w">
+<div id="login" class="pn" style="max-width:360px;margin:12vh auto 0"><h1>ورود مدیر</h1><p class="mu">رمز مدیریت را وارد کنید.</p>
+<input id="pw" type="password" autocomplete="current-password" aria-label="رمز عبور"><div style="margin-top:10px"><button class="pri" id="go">ورود</button></div><div id="lmsg" class="mu" role="alert"></div></div>
+<div id="app" class="hide">
+<div class="row"><h1>پنل مدیریت</h1><button id="out" style="margin-inline-start:auto">خروج</button></div>
+<div class="tabs" role="tablist"><button data-t="tk" aria-pressed="true">تیکت‌ها</button><button data-t="tx" aria-pressed="false">متن‌ها و سوالات</button><button data-t="bn" aria-pressed="false">اعلان</button><button data-t="co" aria-pressed="false">ارزها</button></div>
+<div id="tk" class="pn"><h2>تیکت‌های پشتیبانی</h2><div id="tl"></div></div>
+<div id="tx" class="pn hide"><h2>متن صفحهٔ اصلی</h2><input id="ht" placeholder="تیتر اصلی (خالی = بدون تغییر)" aria-label="تیتر"><div style="height:8px"></div><textarea id="hs" rows="2" placeholder="توضیح زیر تیتر (خالی = بدون تغییر)" aria-label="توضیح"></textarea>
+<h2 style="margin-top:16px">سوالات متداول <span class="mu">(اگر خالی باشد، سوالات پیش‌فرض سایت می‌ماند)</span></h2><div id="fq"></div><button id="fa">+ سوال جدید</button></div>
+<div id="bn" class="pn hide"><h2>اعلان بالای سایت</h2><label class="row"><input type="checkbox" id="bo" style="flex:0 0 20px;width:20px"> <span>نمایش اعلان</span></label>
+<textarea id="bt" rows="2" maxlength="200" placeholder="متن اعلان" aria-label="متن اعلان"></textarea><div style="height:8px"></div><div class="row"><span>رنگ</span><input id="bc" type="color" value="#0fae78" aria-label="رنگ اعلان" style="max-width:80px;padding:2px"></div></div>
+<div id="co" class="pn hide"><h2>ارزهای مخفی‌شده</h2><p class="mu">نماد ارزهایی که در سایت نمایش داده نشوند، با ویرگول جدا کنید. مثال: DOGE, SHIB</p><input id="hd" dir="ltr" placeholder="DOGE, SHIB" aria-label="ارزهای مخفی"></div>
+<div id="save" class="pn"><button class="pri" id="sv">ذخیرهٔ تغییرات سایت</button><div id="msg" role="status"></div></div>
+</div></div>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+function api(p,o){o=o||{};o.credentials='same-origin';if(o.body&&typeof o.body!=='string'){o.body=JSON.stringify(o.body);o.headers={'content-type':'application/json'}}
+  return fetch('/api/admin/'+p,o).then(function(r){if(r.status===401&&p!=='login'){show(false);throw 0}return r.json().then(function(j){if(!r.ok)throw j;return j})})}
+function show(a){$('login').classList.toggle('hide',a);$('app').classList.toggle('hide',!a)}
+$('go').onclick=function(){$('lmsg').textContent='';api('login',{method:'POST',body:{password:$('pw').value}}).then(function(){$('pw').value='';show(true);load()}).catch(function(e){$('lmsg').textContent=e&&e.error==='setup'?'تنظیمات سرور کامل نیست (راهنما را ببینید).':'رمز اشتباه است.'})};
+$('pw').onkeydown=function(e){if(e.key==='Enter')$('go').click()};
+$('out').onclick=function(){api('logout',{method:'POST'}).finally(function(){show(false)})};
+document.querySelectorAll('.tabs button').forEach(function(b){b.onclick=function(){document.querySelectorAll('.tabs button').forEach(function(x){x.setAttribute('aria-pressed',x===b);$(x.dataset.t).classList.toggle('hide',x!==b)});$('save').classList.toggle('hide',b.dataset.t==='tk')}});
+function faqRow(q,a){var d=document.createElement('div');d.className='tk';
+  var i=document.createElement('input');i.placeholder='سوال';i.value=q||'';i.setAttribute('aria-label','سوال');
+  var t=document.createElement('textarea');t.rows=2;t.placeholder='پاسخ';t.value=a||'';t.setAttribute('aria-label','پاسخ');t.style.marginTop='6px';
+  var x=document.createElement('button');x.className='dn';x.textContent='حذف';x.style.marginTop='6px';x.onclick=function(){d.remove()};
+  d.append(i,t,x);$('fq').appendChild(d)}
+$('fa').onclick=function(){faqRow()};
+function load(){
+  api('config').then(function(c){c=c||{};var b=c.banner||{},h=c.hero||{};
+    $('bo').checked=!!b.on;$('bt').value=b.text||'';$('bc').value=/^#[0-9a-f]{6}$/i.test(b.color)?b.color:'#0fae78';
+    $('ht').value=h.title||'';$('hs').value=h.sub||'';$('hd').value=(c.hidden||[]).join(', ');
+    $('fq').textContent='';(c.faq||[]).forEach(function(i){faqRow(i.q,i.a)})});
+  tickets();
+}
+var ST={new:'جدید',open:'در حال بررسی',done:'بسته‌شده'};
+function tickets(){api('tickets').then(function(a){var L=$('tl');L.textContent='';
+  if(!a.length){L.textContent='تیکتی نیست.';return}
+  a.forEach(function(t){var d=document.createElement('div');d.className='tk';
+    var h=document.createElement('div');h.textContent=t.id+' · '+(t.name||'بدون نام')+' · '+ST[t.status];h.style.fontWeight='700';
+    var c=document.createElement('div');c.className='mu';c.textContent=(t.contact||'—')+' · '+new Date(t.created).toLocaleString('fa-IR');
+    var p=document.createElement('p');p.textContent=t.message;
+    var s=document.createElement('select');s.style.maxWidth='170px';s.setAttribute('aria-label','وضعیت');
+    Object.keys(ST).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=ST[k];if(k===t.status)o.selected=true;s.appendChild(o)});
+    s.onchange=function(){api('tickets/'+encodeURIComponent(t.id),{method:'PATCH',body:{status:s.value}}).then(tickets)};
+    var x=document.createElement('button');x.className='dn';x.textContent='حذف';x.style.marginInlineStart='8px';
+    x.onclick=function(){if(confirm('این تیکت حذف شود؟'))api('tickets/'+encodeURIComponent(t.id),{method:'DELETE'}).then(tickets)};
+    d.append(h,c,p,s,x);L.appendChild(d)})})}
+$('sv').onclick=function(){
+  var faq=[].map.call($('fq').children,function(d){return{q:d.children[0].value.trim(),a:d.children[1].value.trim()}});
+  api('config',{method:'PUT',body:{banner:{on:$('bo').checked,text:$('bt').value.trim(),color:$('bc').value},hero:{title:$('ht').value.trim(),sub:$('hs').value.trim()},faq:faq,hidden:$('hd').value.split(/[,،\s]+/).filter(Boolean)}})
+    .then(function(){$('msg').textContent='ذخیره شد. تا حدود ۳۰ ثانیه بعد در سایت دیده می‌شود.'}).catch(function(){$('msg').textContent='ذخیره نشد؛ دوباره تلاش کنید.'})};
+api('me').then(function(){show(true);load()}).catch(function(){show(false)});
+})();
+</script></body></html>
