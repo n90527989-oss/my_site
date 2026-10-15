@@ -19,46 +19,41 @@ export async function onRequest({request,env,params}){
   if(m!=='POST')return json({error:'nf'},404);
   let b={};try{b=await request.json()}catch(e){}
   const un=String(b.username||'').trim().toLowerCase(),pw=String(b.password||'');
-  if(p==='register'){
+  if(p==='send-code'){
     const em=String(b.email||'').trim().toLowerCase();
-    if(!/^[a-z0-9_]{3,20}$/.test(un))return json({error:'نام کاربری ۳ تا ۲۰ حرف انگلیسی، عدد یا _ باشد.'},400);
     if(em.length>120||!/^[^@\s]{1,64}@[^@\s]{1,200}\.[^@\s]{2,}$/.test(em))return json({error:'ایمیل معتبر نیست.'},400);
-    if(pw.length<8||pw.length>72)return json({error:'رمز باید ۸ تا ۷۲ کاراکتر باشد.'},400);
-    if(await env.DB.prepare('SELECT 1 FROM users WHERE username=? OR email=?').bind(un,em).first())return json({error:'این نام کاربری یا ایمیل قبلاً ثبت شده.'},409);
+    if(await env.DB.prepare('SELECT 1 FROM users WHERE email=?').bind(em).first())return json({error:'این ایمیل قبلاً ثبت شده.'},409);
     const old=await env.DB.prepare('SELECT created FROM pending WHERE email=?').bind(em).first();
-    if(old&&Date.now()-old.created<60000)return json({error:'کمی صبر کن و بعد از ۱ دقیقه دوباره تلاش کن.'},429);
+    if(old&&Date.now()-old.created<60000)return json({error:'کمی صبر کن و دوباره تلاش کن.',wait:Math.ceil((60000-(Date.now()-old.created))/1000)},429);
+    const n=await env.DB.prepare('SELECT COUNT(*) c FROM pending WHERE created>?').bind(Date.now()-36e5).first();
+    if(n.c>=60)return json({error:'ظرفیت ارسال کد پر است؛ کمی بعد تلاش کن.'},429);
     const code=newCode();
-    await env.DB.prepare('INSERT OR REPLACE INTO pending (email,username,pw,code,tries,created) VALUES (?,?,?,?,0,?)').bind(em,un,await hashPw(pw),await codeHash(env,em,code),Date.now()).run();
+    await env.DB.prepare("INSERT OR REPLACE INTO pending (email,username,pw,code,tries,created) VALUES (?,'','',?,0,?)").bind(em,await codeHash(env,em,code),Date.now()).run();
     if(!(await sendCode(env,em,code))){
       await env.DB.prepare('DELETE FROM pending WHERE email=?').bind(em).run();
       return json({error:'ارسال ایمیل ناموفق بود. بعداً دوباره تلاش کن.'},502);
     }
-    return json({ok:true,pending:true,email:em});
+    return json({ok:true,wait:60});
   }
-  if(p==='resend'){
-    const em=String(b.email||'').trim().toLowerCase();
-    const row=await env.DB.prepare('SELECT created FROM pending WHERE email=?').bind(em).first();
-    if(!row)return json({error:'درخواستی پیدا نشد؛ دوباره ثبت‌نام کن.'},404);
-    if(Date.now()-row.created<60000)return json({error:'کمی صبر کن و بعد از ۱ دقیقه دوباره تلاش کن.'},429);
-    const code=newCode();
-    await env.DB.prepare('UPDATE pending SET code=?,tries=0,created=? WHERE email=?').bind(await codeHash(env,em,code),Date.now(),em).run();
-    if(!(await sendCode(env,em,code)))return json({error:'ارسال ایمیل ناموفق بود.'},502);
-    return json({ok:true});
-  }
-  if(p==='verify'){
+  if(p==='register'){
     const em=String(b.email||'').trim().toLowerCase(),code=String(b.code||'').trim();
-    const row=await env.DB.prepare('SELECT * FROM pending WHERE email=?').bind(em).first();
-    if(!row||Date.now()-row.created>600000)return json({error:'کد منقضی شده؛ دوباره ثبت‌نام کن.'},400);
-    if(row.tries>=5){await env.DB.prepare('DELETE FROM pending WHERE email=?').bind(em).run();return json({error:'تلاش‌های زیاد؛ دوباره ثبت‌نام کن.'},429)}
+    if(!/^[a-z0-9_]{3,20}$/.test(un))return json({error:'نام کاربری ۳ تا ۲۰ حرف انگلیسی، عدد یا _ باشد.'},400);
+    if(em.length>120||!/^[^@\s]{1,64}@[^@\s]{1,200}\.[^@\s]{2,}$/.test(em))return json({error:'ایمیل معتبر نیست.'},400);
+    if(pw.length<8||pw.length>72)return json({error:'رمز باید ۸ تا ۷۲ کاراکتر باشد.'},400);
+    if(!/^\d{6}$/.test(code))return json({error:'کد ۶ رقمی ایمیل را وارد کن.'},400);
+    const row=await env.DB.prepare('SELECT code,tries,created FROM pending WHERE email=?').bind(em).first();
+    if(!row||Date.now()-row.created>600000)return json({error:'کد منقضی شده یا ارسال نشده؛ دوباره کد بگیر.'},400);
+    if(row.tries>=5){await env.DB.prepare('DELETE FROM pending WHERE email=?').bind(em).run();return json({error:'تلاش‌های زیاد؛ دوباره کد بگیر.'},429)}
     if(await codeHash(env,em,code)!==row.code){
       await env.DB.prepare('UPDATE pending SET tries=tries+1 WHERE email=?').bind(em).run();
       return json({error:'کد اشتباه است.'},400);
     }
+    if(await env.DB.prepare('SELECT 1 FROM users WHERE username=? OR email=?').bind(un,em).first())return json({error:'این نام کاربری یا ایمیل قبلاً ثبت شده.'},409);
     try{
-      const r=await env.DB.prepare('INSERT INTO users (username,email,pw,created) VALUES (?,?,?,?)').bind(row.username,em,row.pw,Date.now()).run();
+      const r=await env.DB.prepare('INSERT INTO users (username,email,pw,created) VALUES (?,?,?,?)').bind(un,em,await hashPw(pw),Date.now()).run();
       await env.DB.prepare('DELETE FROM pending WHERE email=?').bind(em).run();
       const id=r.meta.last_row_id;
-      return json({ok:true,user:{id,username:row.username}},200,{'set-cookie':await setUserCookie(env,id)});
+      return json({ok:true,user:{id,username:un}},200,{'set-cookie':await setUserCookie(env,id)});
     }catch(e){return json({error:'این نام کاربری یا ایمیل قبلاً ثبت شده.'},409)}
   }
   if(p==='login'){
