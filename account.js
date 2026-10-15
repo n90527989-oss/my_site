@@ -77,10 +77,12 @@ function toggleMenu(){if(document.getElementById('ac-mn')){closeMenu();return}
     m.appendChild(it('ورود',function(){showAuth('login')}));m.appendChild(it('ثبت‌نام',function(){showAuth('register')}))}
   else{m.appendChild(h('div',{class:'hd2'},[h('div',{class:'av',text:U.username.charAt(0).toUpperCase()}),h('div',{style:'min-width:0'},[h('b',{text:U.username}),h('div',{class:'mu',dir:'ltr',style:'overflow:hidden;text-overflow:ellipsis',text:D.prof?D.prof.email:''})])]));
     [['نمای کلی','ov'],['لیست پیگیری','wl'],['هشدارها','al'],['پشتیبانی','sup',nNew()],['حساب و امنیت','pf']].forEach(function(x){m.appendChild(it(x[0],function(){openPanel(x[1])},x[2]))});
+    m.appendChild(it('ورود با حساب دیگر',function(){switchTo('login')}));m.appendChild(it('ساخت حساب جدید',function(){switchTo('register')}));
     m.appendChild(it('خروج',logout))}
   document.body.appendChild(m);var f=m.querySelector('button');if(f)f.focus()}
 document.addEventListener('click',function(e){var m=document.getElementById('ac-mn');if(m&&!m.contains(e.target))closeMenu()});
 addEventListener('resize',closeMenu);
+function switchTo(mode){api('auth/logout',{method:'POST'}).finally(function(){U=null;D={al:[],tk:[],fav:[],prof:null};TH=null;closeOv();setFab();showAuth(mode)})}
 function logout(){api('auth/logout',{method:'POST'}).finally(function(){U=null;D={al:[],tk:[],fav:[],prof:null};TH=null;OPEN=false;closeOv();setFab();toast('خارج شدی')})}
 
 /* ورود و ثبت‌نام */
@@ -89,10 +91,17 @@ function showAuth(mode){MODE=mode||MODE;var o=document.getElementById('ac-au');i
   function inp(n,ph,ty,ac){var i=h('input',{placeholder:ph,type:ty||'text','aria-label':ph,autocomplete:ac||'off',dir:'ltr'});f[n]=i;return i}
   box.appendChild(h('div',{class:'rw2',style:'margin-bottom:12px'},[h('b',{style:'font-size:1.1rem',text:MODE==='login'?'ورود به حساب':'ساخت حساب'}),h('span',{class:'sp2'}),h('button',{'aria-label':'بستن',text:'✕',onclick:function(){ov.remove()}})]));
   box.appendChild(inp('username','نام کاربری (انگلیسی)','text','username'));
-  if(MODE==='register')box.appendChild(inp('email','ایمیل','email','email'));
+  if(MODE==='register'){
+    box.appendChild(inp('email','ایمیل','email','email'));
+    var sc=h('button',{text:'ارسال کد به ایمیل',style:'width:100%;margin-bottom:8px',onclick:function(){
+      err.textContent='';var em=f.email.value.trim();if(!em){err.textContent='اول ایمیل را وارد کن.';return}
+      sc.disabled=true;api('auth/send-code',{method:'POST',body:{email:em}}).then(function(j){toast('کد به ایمیلت فرستاده شد؛ پوشهٔ اسپم را هم ببین',5000);tick(j.wait||60);f.code.focus()}).catch(function(e){err.textContent=(e&&e.error)||'خطا؛ دوباره تلاش کن.';if(e&&e.wait)tick(e.wait);else sc.disabled=false})}});
+    function tick(n){sc.disabled=true;sc.textContent='ارسال دوباره ('+n+')';var t=setInterval(function(){n--;if(!document.body.contains(sc)){clearInterval(t);return}if(n<=0){clearInterval(t);sc.disabled=false;sc.textContent='ارسال دوباره'}else sc.textContent='ارسال دوباره ('+n+')'},1000)}
+    box.appendChild(sc);box.appendChild(inp('code','کد ۶ رقمی ایمیل','text','one-time-code'));f.code.setAttribute('inputmode','numeric');f.code.setAttribute('maxlength','6');
+  }
   box.appendChild(inp('password','رمز عبور'+(MODE==='register'?' (حداقل ۸ کاراکتر)':''),'password',MODE==='login'?'current-password':'new-password'));
   var b=h('button',{class:'p',style:'width:100%;padding:11px',text:MODE==='login'?'ورود':'ساخت حساب',onclick:submit});
-  function submit(){err.textContent='';b.disabled=true;var d={username:f.username.value,password:f.password.value};if(MODE==='register')d.email=f.email.value;
+  function submit(){err.textContent='';b.disabled=true;var d={username:f.username.value,password:f.password.value};if(MODE==='register'){d.email=f.email.value;d.code=f.code.value}
     api('auth/'+MODE,{method:'POST',body:d}).then(function(j){U=j.user;ov.remove();setFab();toast('خوش آمدی '+U.username);load()}).catch(function(e){err.textContent=(e&&e.error)||'خطا؛ دوباره تلاش کن.';b.disabled=false})}
   Object.keys(f).forEach(function(k){f[k].onkeydown=function(e){if(e.key==='Enter')submit()}});
   box.appendChild(b);box.appendChild(err);
