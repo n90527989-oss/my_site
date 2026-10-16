@@ -86,27 +86,35 @@ function switchTo(mode){api('auth/logout',{method:'POST'}).finally(function(){U=
 function logout(){api('auth/logout',{method:'POST'}).finally(function(){U=null;D={al:[],tk:[],fav:[],prof:null};TH=null;OPEN=false;closeOv();setFab();toast('خارج شدی')})}
 
 /* ورود و ثبت‌نام */
-function showAuth(mode){MODE=mode||MODE;var o=document.getElementById('ac-au');if(o)o.remove();
+function showAuth(mode,st){MODE=mode||MODE;st=st||{};var o=document.getElementById('ac-au');if(o)o.remove();
   var f={},err=h('div',{class:'er',role:'alert'}),box=h('div',{class:'cd',role:'dialog','aria-modal':'true','aria-label':'ورود یا ثبت‌نام',style:'width:100%;max-width:400px;margin:0;animation:acpop .2s'}),ov=h('div',{class:'ac-sh',id:'ac-au',onclick:function(e){if(e.target===ov)ov.remove()}},[box]);
-  function inp(n,ph,ty,ac){var i=h('input',{placeholder:ph,type:ty||'text','aria-label':ph,autocomplete:ac||'off',dir:'ltr'});f[n]=i;return i}
-  box.appendChild(h('div',{class:'rw2',style:'margin-bottom:12px'},[h('b',{style:'font-size:1.1rem',text:MODE==='login'?'ورود به حساب':'ساخت حساب'}),h('span',{class:'sp2'}),h('button',{'aria-label':'بستن',text:'✕',onclick:function(){ov.remove()}})]));
-  box.appendChild(inp('username','نام کاربری (انگلیسی)','text','username'));
-  if(MODE==='register'){
-    box.appendChild(inp('email','ایمیل','email','email'));
-    var sc=h('button',{text:'ارسال کد به ایمیل',style:'width:100%;margin-bottom:8px',onclick:function(){
-      err.textContent='';var em=f.email.value.trim();if(!em){err.textContent='اول ایمیل را وارد کن.';return}
-      sc.disabled=true;api('auth/send-code',{method:'POST',body:{email:em}}).then(function(j){toast('کد به ایمیلت فرستاده شد؛ پوشهٔ اسپم را هم ببین',5000);tick(j.wait||60);f.code.focus()}).catch(function(e){err.textContent=(e&&e.error)||'خطا؛ دوباره تلاش کن.';if(e&&e.wait)tick(e.wait);else sc.disabled=false})}});
-    function tick(n){sc.disabled=true;sc.textContent='ارسال دوباره ('+n+')';var t=setInterval(function(){n--;if(!document.body.contains(sc)){clearInterval(t);return}if(n<=0){clearInterval(t);sc.disabled=false;sc.textContent='ارسال دوباره'}else sc.textContent='ارسال دوباره ('+n+')'},1000)}
-    box.appendChild(sc);box.appendChild(inp('code','کد ۶ رقمی ایمیل','text','one-time-code'));f.code.setAttribute('inputmode','numeric');f.code.setAttribute('maxlength','6');
+  function inp(n,ph,ty,ac,v){var i=h('input',{placeholder:ph,type:ty||'text','aria-label':ph,autocomplete:ac||'off',dir:'ltr'});if(v)i.value=v;f[n]=i;return i}
+  function head(t,back){var k=[];if(back)k.push(h('button',{'aria-label':'بازگشت',text:'→',onclick:back}));k.push(h('b',{style:'font-size:1.1rem',text:t}),h('span',{class:'sp2'}),h('button',{'aria-label':'بستن',text:'✕',onclick:function(){ov.remove()}}));box.appendChild(h('div',{class:'rw2',style:'margin-bottom:12px;gap:8px'},k))}
+  function done(j){U=j.user;ov.remove();setFab();toast('خوش آمدی '+U.username);load()}
+  function enter(fn){Object.keys(f).forEach(function(k){f[k].onkeydown=function(e){if(e.key==='Enter')fn()}})}
+  function foot(){box.appendChild(h('div',{class:'mu',style:'text-align:center;margin-top:10px'},[MODE==='login'?'حساب نداری؟ ':'حساب داری؟ ',h('a',{href:'#',style:'color:var(--ac,#1bc48a)',text:MODE==='login'?'ثبت‌نام':'ورود',onclick:function(e){e.preventDefault();showAuth(MODE==='login'?'register':'login')}})]))}
+  if(MODE==='login'){
+    head('ورود به حساب');box.appendChild(inp('username','نام کاربری','text','username'));box.appendChild(inp('password','رمز عبور','password','current-password'));
+    var lb=h('button',{class:'p',style:'width:100%;padding:11px',text:'ورود',onclick:function(){err.textContent='';lb.disabled=true;api('auth/login',{method:'POST',body:{username:f.username.value,password:f.password.value}}).then(done).catch(function(e){err.textContent=(e&&e.error)||'خطا؛ دوباره تلاش کن.';lb.disabled=false})}});
+    box.appendChild(lb);box.appendChild(err);enter(function(){lb.click()});foot();
+  }else if(st.step===2){
+    head('تایید ایمیل',function(){showAuth('register',{u:st.u,e:st.e,p:st.p})});
+    box.appendChild(h('p',{class:'mu',style:'margin:0 0 12px;line-height:1.9'},['کد ۶ رقمی به ',h('b',{dir:'ltr',text:st.e}),' ارسال شد. اگر نیامد پوشهٔ اسپم را هم نگاه کن.']));
+    var ci=inp('code','کد ۶ رقمی','text','one-time-code');ci.setAttribute('inputmode','numeric');ci.setAttribute('maxlength','6');ci.style.cssText='text-align:center;letter-spacing:8px;font-size:1.3rem';box.appendChild(ci);
+    var vb=h('button',{class:'p',style:'width:100%;padding:11px',text:'تایید و ساخت حساب',onclick:function(){err.textContent='';if(!/^\d{6}$/.test(ci.value.trim())){err.textContent='کد ۶ رقمی را کامل وارد کن.';return}vb.disabled=true;api('auth/register',{method:'POST',body:{username:st.u,email:st.e,password:st.p,code:ci.value.trim()}}).then(done).catch(function(e){err.textContent=(e&&e.error)||'خطا؛ دوباره تلاش کن.';vb.disabled=false})}});
+    var rs=h('button',{style:'width:100%;margin-top:8px',text:'ارسال دوباره',onclick:function(){err.textContent='';rs.disabled=true;api('auth/send-code',{method:'POST',body:{email:st.e}}).then(function(j){toast('کد جدید ارسال شد');tick(j.wait||60)}).catch(function(e){err.textContent=(e&&e.error)||'خطا؛ دوباره تلاش کن.';if(e&&e.wait)tick(e.wait);else rs.disabled=false})}});
+    function tick(n){rs.disabled=true;rs.textContent='ارسال دوباره ('+n+')';var t=setInterval(function(){n--;if(!document.body.contains(rs)){clearInterval(t);return}if(n<=0){clearInterval(t);rs.disabled=false;rs.textContent='ارسال دوباره'}else rs.textContent='ارسال دوباره ('+n+')'},1000)}
+    box.appendChild(vb);box.appendChild(rs);box.appendChild(err);enter(function(){vb.click()});tick(st.wait||60);
+  }else{
+    head('ساخت حساب');box.appendChild(inp('username','نام کاربری (انگلیسی)','text','username',st.u));box.appendChild(inp('email','ایمیل','email','email',st.e));box.appendChild(inp('password','رمز عبور (حداقل ۸ کاراکتر)','password','new-password',st.p));
+    var sb=h('button',{class:'p',style:'width:100%;padding:11px',text:'ارسال کد',onclick:function(){err.textContent='';var u=f.username.value.trim().toLowerCase(),e=f.email.value.trim().toLowerCase(),p=f.password.value;
+      if(!/^[a-z0-9_]{3,20}$/.test(u)){err.textContent='نام کاربری ۳ تا ۲۰ حرف انگلیسی، عدد یا _ باشد.';return}
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(e)){err.textContent='ایمیل معتبر نیست.';return}
+      if(p.length<8){err.textContent='رمز باید حداقل ۸ کاراکتر باشد.';return}
+      sb.disabled=true;api('auth/send-code',{method:'POST',body:{email:e}}).then(function(j){showAuth('register',{step:2,u:u,e:e,p:p,wait:j.wait||60})}).catch(function(x){if(x&&x.wait){showAuth('register',{step:2,u:u,e:e,p:p,wait:x.wait});return}err.textContent=(x&&x.error)||'خطا؛ دوباره تلاش کن.';sb.disabled=false})}});
+    box.appendChild(sb);box.appendChild(err);enter(function(){sb.click()});foot();
   }
-  box.appendChild(inp('password','رمز عبور'+(MODE==='register'?' (حداقل ۸ کاراکتر)':''),'password',MODE==='login'?'current-password':'new-password'));
-  var b=h('button',{class:'p',style:'width:100%;padding:11px',text:MODE==='login'?'ورود':'ساخت حساب',onclick:submit});
-  function submit(){err.textContent='';b.disabled=true;var d={username:f.username.value,password:f.password.value};if(MODE==='register'){d.email=f.email.value;d.code=f.code.value}
-    api('auth/'+MODE,{method:'POST',body:d}).then(function(j){U=j.user;ov.remove();setFab();toast('خوش آمدی '+U.username);load()}).catch(function(e){err.textContent=(e&&e.error)||'خطا؛ دوباره تلاش کن.';b.disabled=false})}
-  Object.keys(f).forEach(function(k){f[k].onkeydown=function(e){if(e.key==='Enter')submit()}});
-  box.appendChild(b);box.appendChild(err);
-  box.appendChild(h('div',{class:'mu',style:'text-align:center'},[MODE==='login'?'حساب نداری؟ ':'حساب داری؟ ',h('a',{href:'#',style:'color:var(--ac,#1bc48a)',text:MODE==='login'?'ثبت‌نام':'ورود',onclick:function(e){e.preventDefault();showAuth(MODE==='login'?'register':'login')}})]));
-  document.body.appendChild(ov);f.username.focus()}
+  document.body.appendChild(ov);var fk=Object.keys(f)[0];if(fk)f[fk].focus()}
 
 /* پنل کاربری */
 function openPanel(s){if(!U){showAuth('login');return}SEC=s||SEC;TH=null;OPEN=true;
