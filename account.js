@@ -1,10 +1,10 @@
-(function(){
+<(function(){
 if(window.__acct)return;window.__acct=1;
 var U=null,D={al:[],tk:[],fav:[],prof:null},PR={},OPEN=false,SEC='ov',TH=null,AUTH=false,MODE='login';
 var ST={new:'ارسال‌شده',open:'در حال بررسی',done:'بسته‌شده'};
 function h(t,a,k){var e=document.createElement(t);for(var x in a||{}){if(x==='text')e.textContent=a[x];else if(x.slice(0,2)==='on')e[x]=a[x];else e.setAttribute(x,a[x])}(k||[]).forEach(function(c){if(c!=null&&c!==false)e.appendChild(typeof c==='string'?document.createTextNode(c):c)});return e}
 function sessionEnd(){if(!U)return;U=null;D={al:[],tk:[],fav:[],prof:null};TH=null;closeOv();setFab();toast('نشست تمام شد؛ دوباره وارد شو',4500)}
-function api(p,o){o=o||{};o.credentials='same-origin';if(o.body&&typeof o.body!=='string'){o.body=JSON.stringify(o.body);o.headers={'content-type':'application/json'}}
+function api(p,o){o=o||{};o.credentials='same-origin';if(o.body&&typeof o.body!=='string'){o.body=JSON.stringify(o.body);o.headers={'content-type':'applica/tion/json'}}
   return fetch('/api/'+p,o).then(function(r){return r.text().then(function(t){var j;try{j=JSON.parse(t)}catch(e){throw{error:'پاسخ سرور نامعتبر است؛ فایل‌های سرور کامل نصب نشده‌اند.'}}if(r.status===401&&/^me\//.test(p))sessionEnd();if(!r.ok)throw j;return j})})}
 var fa=new Intl.NumberFormat('fa-IR'),en=new Intl.NumberFormat('en-US',{maximumFractionDigits:8});
 function dt(t){return new Date(t).toLocaleDateString('fa-IR')}
@@ -110,7 +110,7 @@ function toast(m,ms){var t=h('div',{class:'tm',role:'status',text:m});document.b
 function closeMenu(){var m=document.getElementById('ac-mn');if(m)m.remove()}
 function toggleMenu(){if(document.getElementById('ac-mn')){closeMenu();return}
   var m=h('div',{id:'ac-mn',role:'menu'}),r=fab.getBoundingClientRect();
-  m.style.top=(r.bottom+8)+'px';m.style.left=Math.max(8,Math.min(r.left,innerWidth-276))+'px';
+  m.style.top=(r.bottom+8)+'px';m.style.left=Math.max(8,Math.min(r.left,document.documentElement.clientWidth-276))+'px';
   function it(txt,fn,cnt){return h('button',{class:'mi',role:'menuitem',onclick:function(){closeMenu();fn()}},[txt,cnt?h('span',{class:'cnt',text:String(cnt)}):null])}
   if(!U){m.appendChild(h('div',{class:'hd2'},[h('div',{class:'av',text:'؟'}),h('div',{},[h('b',{text:'خوش آمدی'}),h('div',{class:'mu',text:'برای دسترسی به امکانات وارد شو'})])]));
     m.appendChild(it('ورود',function(){showAuth('login')}));m.appendChild(it('ثبت‌نام',function(){showAuth('register')}))}
