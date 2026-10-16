@@ -21,7 +21,7 @@ body{background:radial-gradient(70% 42% at 88% -8%,var(--glow),transparent 62%),
 .rv.in .g3>*,.rv.in .ft>*,.rv.in .stats>*{animation:up .7s cubic-bezier(.2,.8,.2,1) both}.g3>*:nth-child(2),.ft>*:nth-child(2),.stats>*:nth-child(2){animation-delay:.08s}.g3>*:nth-child(3),.ft>*:nth-child(3),.stats>*:nth-child(3){animation-delay:.16s}.ft>*:nth-child(4){animation-delay:.24s}
 .tape{background:linear-gradient(90deg,var(--sf),var(--s2),var(--sf))}.ti b{color:var(--ink)}
 .pill.pp{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}.fu,.fd{animation:fx 1s ease-out}
-.pcv{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.pcv{position:absolute;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none}
 .emb{display:none;width:min(210px,56vw);margin:0 0 6px;mix-blend-mode:lighten;filter:drop-shadow(0 0 30px var(--glow));animation:flb 7s ease-in-out infinite}:root[data-theme=dark] .emb{display:block}@keyframes flb{50%{transform:translateY(-8px) scale(1.02)}}
 @media(max-width:880px){.emb{margin-inline:auto}}
 .ac-lg{display:none;width:118px;margin:-8px auto 4px;mix-blend-mode:lighten}:root[data-theme=dark] .ac-lg{display:block}
@@ -33,3 +33,5 @@ body{background:radial-gradient(70% 42% at 88% -8%,var(--glow),transparent 62%),
 .ac-s b{background:var(--gd,none);-webkit-background-clip:text;background-clip:text;color:transparent}
 .ac-pg>.cd{animation:up .5s cubic-bezier(.2,.8,.2,1) both}.ac-pg>.cd:nth-child(2){animation-delay:.07s}.ac-pg>.cd:nth-child(3){animation-delay:.14s}
 @media(prefers-reduced-motion:reduce){.pcv,#ac-sp i{display:none}.emb{animation:none}}
+html,body{overflow-x:clip;max-width:100%}
+@media(max-width:880px){.hdi{height:auto;min-height:64px}}
