@@ -1,10 +1,10 @@
-<(function(){
+(function(){
 if(window.__acct)return;window.__acct=1;
 var U=null,D={al:[],tk:[],fav:[],prof:null},PR={},OPEN=false,SEC='ov',TH=null,AUTH=false,MODE='login';
 var ST={new:'ارسال‌شده',open:'در حال بررسی',done:'بسته‌شده'};
 function h(t,a,k){var e=document.createElement(t);for(var x in a||{}){if(x==='text')e.textContent=a[x];else if(x.slice(0,2)==='on')e[x]=a[x];else e.setAttribute(x,a[x])}(k||[]).forEach(function(c){if(c!=null&&c!==false)e.appendChild(typeof c==='string'?document.createTextNode(c):c)});return e}
 function sessionEnd(){if(!U)return;U=null;D={al:[],tk:[],fav:[],prof:null};TH=null;closeOv();setFab();toast('نشست تمام شد؛ دوباره وارد شو',4500)}
-function api(p,o){o=o||{};o.credentials='same-origin';if(o.body&&typeof o.body!=='string'){o.body=JSON.stringify(o.body);o.headers={'content-type':'applica/tion/json'}}
+function api(p,o){o=o||{};o.credentials='same-origin';if(o.body&&typeof o.body!=='string'){o.body=JSON.stringify(o.body);o.headers={'content-type':'application/json'}}
   return fetch('/api/'+p,o).then(function(r){return r.text().then(function(t){var j;try{j=JSON.parse(t)}catch(e){throw{error:'پاسخ سرور نامعتبر است؛ فایل‌های سرور کامل نصب نشده‌اند.'}}if(r.status===401&&/^me\//.test(p))sessionEnd();if(!r.ok)throw j;return j})})}
 var fa=new Intl.NumberFormat('fa-IR'),en=new Intl.NumberFormat('en-US',{maximumFractionDigits:8});
 function dt(t){return new Date(t).toLocaleDateString('fa-IR')}
