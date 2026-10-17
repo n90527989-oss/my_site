@@ -1,4 +1,4 @@
-import {json,hex,mac,hashPw,checkPw,setUserCookie,userId,limited,rlGet,rlInc,rlClear,ip,slog} from '../../_auth.js';
+import {json,hex,mac,eq,hashPw,checkPw,setUserCookie,userId,limited,rlGet,rlInc,rlClear,ip,slog} from '../../_auth.js';
 async function sendCode(env,em,code){
   if(!env.MAIL_URL||!env.MAIL_KEY)return false;
   try{
@@ -17,12 +17,14 @@ export async function onRequest({request,env,params}){
   }
   if(p==='logout')return json({ok:true},200,{'set-cookie':'usr=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0'});
   if(m!=='POST')return json({error:'nf'},404);
+  if(+(request.headers.get('content-length')||0)>4000)return json({error:'big'},413);
   let b={};try{b=await request.json()}catch(e){}
   const un=String(b.username||'').trim().toLowerCase(),pw=String(b.password||'');
   if(p==='send-code'){
-    if(await limited(env,request,'sc',6,3600)){await slog(env,request,'rate_limited','ارسال کد');return json({error:'درخواست‌های زیادی فرستادی؛ بعداً تلاش کن.'},429)}
+    if(await limited(env,request,'sc',5,3600)){await slog(env,request,'rate_limited','ارسال کد');return json({error:'درخواست‌های زیادی فرستادی؛ بعداً تلاش کن.'},429)}
     const em=String(b.email||'').trim().toLowerCase();
     if(em.length>120||!/^[^@\s]{1,64}@[^@\s]{1,200}\.[^@\s]{2,}$/.test(em))return json({error:'ایمیل معتبر نیست.'},400);
+    if((await rlInc(env,'sce:'+em,3600))>3)return json({error:'برای این ایمیل زیاد کد فرستاده شده؛ یک ساعت بعد تلاش کن.'},429);
     if(await env.DB.prepare('SELECT 1 FROM users WHERE email=?').bind(em).first())return json({error:'این ایمیل قبلاً ثبت شده.'},409);
     const old=await env.DB.prepare('SELECT created FROM pending WHERE email=?').bind(em).first();
     if(old&&Date.now()-old.created<60000)return json({error:'کمی صبر کن و دوباره تلاش کن.',wait:Math.ceil((60000-(Date.now()-old.created))/1000)},429);
@@ -45,11 +47,9 @@ export async function onRequest({request,env,params}){
     if(!/^\d{6}$/.test(code))return json({error:'کد ۶ رقمی ایمیل را وارد کن.'},400);
     const row=await env.DB.prepare('SELECT code,tries,created FROM pending WHERE email=?').bind(em).first();
     if(!row||Date.now()-row.created>600000)return json({error:'کد منقضی شده یا ارسال نشده؛ دوباره کد بگیر.'},400);
-    if(row.tries>=5){await env.DB.prepare('DELETE FROM pending WHERE email=?').bind(em).run();return json({error:'تلاش‌های زیاد؛ دوباره کد بگیر.'},429)}
-    if(await codeHash(env,em,code)!==row.code){
-      await env.DB.prepare('UPDATE pending SET tries=tries+1 WHERE email=?').bind(em).run();
-      return json({error:'کد اشتباه است.'},400);
-    }
+    const tr=await env.DB.prepare('UPDATE pending SET tries=tries+1 WHERE email=? RETURNING tries').bind(em).first();
+    if(!tr||tr.tries>5){await env.DB.prepare('DELETE FROM pending WHERE email=?').bind(em).run();return json({error:'تلاش‌های زیاد؛ دوباره کد بگیر.'},429)}
+    if(!eq(await codeHash(env,em,code),row.code))return json({error:'کد اشتباه است.'},400);
     if(await env.DB.prepare('SELECT 1 FROM users WHERE username=? OR email=?').bind(un,em).first())return json({error:'این نام کاربری یا ایمیل قبلاً ثبت شده.'},409);
     try{
       const r=await env.DB.prepare('INSERT INTO users (username,email,pw,created) VALUES (?,?,?,?)').bind(un,em,await hashPw(pw),Date.now()).run();
@@ -59,12 +59,15 @@ export async function onRequest({request,env,params}){
     }catch(e){return json({error:'این نام کاربری یا ایمیل قبلاً ثبت شده.'},409)}
   }
   if(p==='login'){
-    const kI='ui:'+ip(request),kU='ul:'+un.slice(0,40);
-    if(await rlGet(env,kI,900)>=15||await rlGet(env,kU,900)>=6){await slog(env,request,'rate_limited','قفل ورود کاربر: '+un.slice(0,30));return json({error:'تلاش‌های ناموفق زیاد بود؛ ۱۵ دقیقه بعد دوباره امتحان کن.'},429)}
+    /* every attempt is counted BEFORE the password is checked (atomic), so parallel guesses cannot slip past the limit.
+       The lock is per username+IP, so a stranger can't lock your account for everyone else. */
+    const cip=ip(request),kI='ui:'+cip,kUI='ul:'+un.slice(0,40)+':'+cip,kU='ug:'+un.slice(0,40);
+    const nI=await rlInc(env,kI,900),nUI=await rlInc(env,kUI,900),nU=await rlInc(env,kU,3600);
+    if(nI>30||nUI>6||nU>200){await slog(env,request,'rate_limited','قفل ورود کاربر');return json({error:'تلاش‌های ناموفق زیاد بود؛ ۱۵ دقیقه بعد دوباره امتحان کن.'},429)}
     await new Promise(r=>setTimeout(r,500));
     const u=await env.DB.prepare('SELECT id,username,pw FROM users WHERE username=?').bind(un).first();
-    if(!u||!(await checkPw(pw,u.pw))){await rlInc(env,kI,900);await rlInc(env,kU,900);await slog(env,request,'user_login_fail',un.slice(0,30));return json({error:'نام کاربری یا رمز اشتباه است.'},401)}
-    await rlClear(env,kU);
+    if(!u||!(await checkPw(pw,u.pw))){await slog(env,request,'user_login_fail',u?un.slice(0,30):'نام کاربری ناشناس');return json({error:'نام کاربری یا رمز اشتباه است.'},401)}
+    await rlClear(env,kUI);
     return json({ok:true,user:{id:u.id,username:u.username}},200,{'set-cookie':await setUserCookie(env,u.id)});
   }
   return json({error:'nf'},404);
