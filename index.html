@@ -270,6 +270,15 @@ const GL={BTC:'₿',ETH:'Ξ',SOL:'◎',XRP:'✕',DOGE:'Ð',BNB:'◆',ADA:'₳',T
 const CL={BCH:'#8dc351',ETC:'#328332',NEAR:'#1b1b1b',NOT:'#16181d',AAVE:'#b6509e',PEPE:'#2f8e58',SUI:'#4da2ff',ATOM:'#2e3148',BTC:'#f7931a',ETH:'#627eea',USDT:'#26a17b',SOL:'#9945ff',XRP:'#346aa9',DOGE:'#c2a633',BNB:'#f3ba2f',ADA:'#0d5fd8',TRX:'#e5092c',TON:'#0098ea',LINK:'#2a5ada',AVAX:'#e84142',DOT:'#e6007a',LTC:'#345d9d',SHIB:'#f00500',UNI:'#ff007a'};
 const PR=['BTC','ETH','USDT','SOL','XRP','DOGE','BNB','TON','TRX','ADA','LINK','AVAX','DOT','LTC','SHIB'];
 const WL=new Set(['BTC','ETH','USDT','BNB','XRP','SOL','DOGE','TRX','ADA','TON','AVAX','SHIB','LINK','DOT','LTC','BCH','UNI','NEAR','ATOM','ETC','SUI','PEPE','NOT','AAVE']);
+let LAST=null,CCFG={add:[],hide:[],names:{}};
+const WL0=[...WL],NM0=Object.assign({},NM),SYMOK=/^[A-Z0-9]{2,10}$/,NAMEOK=/^[\p{L}\p{N} \u200c.\-]{1,30}$/u;
+window.__coins={base:WL0,cfg:()=>JSON.parse(JSON.stringify(CCFG)),has:x=>!!(T[x]&&T[x].pi),shown:x=>WL.has(x),name:x=>NM[x]||'',list:()=>[...WL],
+ apply(c){c=c&&typeof c==='object'?c:{};const ok=a=>(Array.isArray(a)?a:[]).filter(x=>typeof x==='string'&&SYMOK.test(x)),ad=ok(c.add),hi=ok(c.hide),nm={};
+  if(c.names&&typeof c.names==='object')for(const k of Object.keys(c.names)){const v=c.names[k];if(SYMOK.test(k)&&typeof v==='string'&&NAMEOK.test(v))nm[k]=v}
+  CCFG={add:ad,hide:hi,names:nm};WL.clear();WL0.forEach(x=>WL.add(x));ad.forEach(x=>WL.add(x));hi.forEach(x=>WL.delete(x));
+  Object.keys(NM).forEach(k=>delete NM[k]);Object.assign(NM,NM0,nm);
+  if(LAST){ORD=[];ingest(LAST)}}};
+fetch('/api/coins',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(c=>{if(c)window.__coins.apply(c)}).catch(()=>{});
 const col=s=>CL[s]||`hsl(${[...s].reduce((a,c)=>a*31+c.charCodeAt(0),7)%360} 55% 42%)`;
 const SK='fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"',TX=(t,z)=>`<text x="16" y="${z>16?23:21}" text-anchor="middle" font-size="${z}" font-weight="800" font-family="Inter,Arial,sans-serif" fill="#fff">${t}</text>`;
 const BTCP=`<path d="M12 8v16M12 8h6a3.3 3.3 0 0 1 0 6.6h-6M12 14.6h7a3.7 3.7 0 0 1 0 7.4h-7M15 5.5V8M19 5.5V8M15 24v2.5M19 24v2.5" ${SK}/>`,ETHP='<path d="M16 5l7 11.3-7 4.2-7-4.2z" fill="#fff"/><path d="M16 22.4l7-4.2L16 27 9 18.2z" fill="#fff" opacity=".8"/>';
@@ -295,7 +304,7 @@ const ic=s=>`<span class="ic" style="background:${col(s)}"><svg viewBox="0 0 32 
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let FAV={};try{FAV=JSON.parse(localStorage.getItem('fav')||'{}')}catch(e){}
 const saveF=()=>{try{localStorage.setItem('fav',JSON.stringify(FAV))}catch(e){}};
-const T={},SP={},HS={};let ORD=[],CUR='tmn',F='all',Q='',ALL=false,cc=null,AU=0,lastOk=0,sample=null,ctrl=null,BP='https://api.bitpin.ir';
+const T=Object.create(null),SP={},HS={};let ORD=[],CUR='tmn',F='all',Q='',ALL=false,cc=null,AU=0,lastOk=0,sample=null,ctrl=null,BP='https://api.bitpin.ir';
 const pri=t=>CUR==='tmn'?t.pi:t.pu,chg=t=>CUR==='tmn'?t.ci:t.cu;
 const fmt=v=>v==null?'—':CUR==='tmn'?(v>=100?fa.format(Math.round(v)):v.toLocaleString('fa-IR',{maximumFractionDigits:2})):(v>=1000?en(v,2):v>=1?en(v,4):en(v,8));
 const lab=v=>CUR==='tmn'?Math.round(v).toLocaleString('en-US'):(v>=1000?en(v,2):v>=1?en(v,4):en(v,8));
@@ -308,7 +317,7 @@ const spk=(a,up)=>{if(!a||a.length<2)return '';const mn=Math.min(...a),mx=Math.m
 /* ---------- Bitpin data ---------- */
 const tsig=()=>{try{return AbortSignal.timeout(7000)}catch(e){return undefined}};
 function pc(x){const v=+x.daily_change_price,p=+x.price,lo=+x.low,hi=+x.high;if(!isFinite(v))return null;const rg=lo>0?(hi-lo)/lo*100:0;return Math.abs(v)<=Math.max(rg*1.5+1,3)?v:v/(p-v)*100}
-function ingest(a){
+function ingest(a){LAST=a;
  a.forEach(x=>{const [b,q]=String(x.symbol).split('_');if(!b||(q!=='IRT'&&q!=='USDT'))return;const p=+x.price;if(!(p>0))return;const t=T[b]||(T[b]={s:b}),k=q==='IRT'?'i':'u',old=t['p'+k];t['d'+k]=old?Math.sign(p-old):0;t['p'+k]=p;t['c'+k]=pc(x);t['h'+k]=+x.high||p;t['l'+k]=+x.low||p});
  AU=T.USDT&&T.USDT.pi||AU;
  const n=Object.keys(T).filter(s=>T[s].pi&&WL.has(s)).sort((a,b)=>{const i=PR.indexOf(a),j=PR.indexOf(b);return (i<0?999:i)-(j<0?999:j)||a.localeCompare(b)});
