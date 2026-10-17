@@ -11,10 +11,11 @@ export async function onRequest({request,env,params}){
 
   /* ---------- login ---------- */
   if(path==='login'&&method==='POST'){
-    const b=await body(request),lk='adm:'+me;
-    if(await rlGet(env,lk,WIN)>=MAXFAIL){await slog(env,request,'admin_locked','ورود در حالت قفل');return json({error:'locked'},429)}
+    /* the attempt is counted first (atomic), then checked: parallel guesses cannot beat the lock */
+    const b=await body(request),lk='adm:'+me,n=await rlInc(env,lk,WIN);
+    if(n>MAXFAIL){await slog(env,request,'admin_locked','ورود در حالت قفل');return json({error:'locked'},429)}
     await new Promise(r=>setTimeout(r,600));
-    const fail=async(type,info)=>{const n=await rlInc(env,lk,WIN);await slog(env,request,type,info);return json({error:n>=MAXFAIL?'locked':'bad'},n>=MAXFAIL?429:401)};
+    const fail=async(type,info)=>{await slog(env,request,type,info);return json({error:n>=MAXFAIL?'locked':'bad'},n>=MAXFAIL?429:401)};
     if(!(await samePw(String(b.password||''),env)))return fail('admin_login_fail','رمز اشتباه');
     const totp=await kvGet(env,'totp');
     if(totp&&env.ADMIN_2FA_OFF!=='1'){
@@ -24,6 +25,7 @@ export async function onRequest({request,env,params}){
     await rlClear(env,lk);await slog(env,request,'admin_login_ok','');
     return json({ok:true},200,{'set-cookie':await adminCookie(env)});
   }
+
   if(path==='logout')return json({ok:true},200,{'set-cookie':adminClear});
   if(!(await adminOk(request,env)))return json({error:'auth'},401);
   if(path==='me')return json({ok:true});
