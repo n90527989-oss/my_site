@@ -11,7 +11,7 @@ const TABLES=[
  'CREATE TABLE IF NOT EXISTS sec_log (id INTEGER PRIMARY KEY AUTOINCREMENT, t INTEGER NOT NULL, type TEXT NOT NULL, ip TEXT, ua TEXT, info TEXT)',
  'CREATE TABLE IF NOT EXISTS rl (k TEXT PRIMARY KEY, n INTEGER NOT NULL, t INTEGER NOT NULL)'
 ];
-const COLS=[['tickets','user_id','INTEGER'],['tickets','subject','TEXT'],['users','favs','TEXT']];
+const COLS=[['tickets','user_id','INTEGER'],['tickets','subject','TEXT'],['users','favs','TEXT'],['users','sv','INTEGER DEFAULT 0']];
 const INDEXES=[
  'CREATE INDEX IF NOT EXISTS i_tk_user ON tickets(user_id)','CREATE INDEX IF NOT EXISTS i_msg_tk ON ticket_msgs(ticket_id)',
  'CREATE INDEX IF NOT EXISTS i_al_user ON alerts(user_id)','CREATE INDEX IF NOT EXISTS i_log_t ON sec_log(t)'
@@ -45,7 +45,7 @@ const CSP=[
  "default-src 'self'","base-uri 'self'","object-src 'none'","frame-ancestors 'none'","form-action 'self'",
  "script-src 'self' 'unsafe-inline'","style-src 'self' 'unsafe-inline' https://fonts.googleapis.com","font-src 'self' https://fonts.gstatic.com data:",
  "img-src 'self' data: https://s2.coinmarketcap.com https://assets.coincap.io https://cdn.jsdelivr.net",
- "connect-src 'self' https://api.bitpin.ir https://api.bitpin.org https://text.pollinations.ai https://api.groq.com https://generativelanguage.googleapis.com https://api.anthropic.com",
+ "connect-src 'self' https://api.bitpin.ir https://api.bitpin.org https://text.pollinations.ai",
  'upgrade-insecure-requests'
 ].join('; ');
 function sec(r,admin){
