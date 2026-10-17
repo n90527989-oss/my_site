@@ -63,8 +63,13 @@ main{padding:14px 14px 96px;max-width:1100px;width:100%}@media(min-width:900px){
 
 <section id="v-inbox" class="hide"><div class="inb" id="inb"><div class="cd" id="il"><input id="sq" placeholder="جستجو در تیکت‌ها…" aria-label="جستجو" style="margin-bottom:8px"><div class="chips" id="tf"></div><div id="tl"></div></div><div class="cd" id="idt"></div></div></section>
 
-<section id="v-users" class="hide"><div class="cd"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">کاربران</h2><span class="mu" id="uc"></span></div><input id="uq" placeholder="جستجوی نام کاربری یا ایمیل…" aria-label="جستجوی کاربر" style="margin-bottom:10px"><div id="ul"></div></div></section>
+<section id="v-users" class="hide"><div class="cd"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">کاربران</h2><span class="mu" id="uc"></span><span class="sp"></span><button class="sm" id="ucsv">خروجی CSV</button></div><input id="uq" placeholder="جستجوی نام کاربری یا ایمیل…" aria-label="جستجوی کاربر" style="margin-bottom:10px"><div id="ul"></div></div></section>
 
+<section id="v-cm" class="hide"><div class="cd"><div class="row"><h2 style="margin:0">ارزهای سایت</h2><span class="mu" id="cmn"></span></div>
+ <div class="row" style="margin:10px 0"><input id="cms" placeholder="نماد انگلیسی، مثل ARB" dir="ltr" maxlength="10" aria-label="نماد"><input id="cmm" placeholder="نام فارسی (اختیاری)" maxlength="30" aria-label="نام فارسی"><button class="pri" id="cma">افزودن</button></div><div id="cml"></div><h2 style="margin:16px 0 8px">حذف‌شده‌ها</h2><div id="cmh"></div></div></section>
+<section id="v-ai" class="hide"><div class="cd"><h2>هوش مصنوعی (Groq)</h2><div class="kp" id="aik"></div>
+ <label class="row" style="margin:12px 0"><input type="checkbox" id="aio"><span>تحلیل هوش مصنوعی فعال باشد</span></label>
+ <div class="row"><span>سقف هر کاربر در ساعت</span><input id="aih" type="number" min="1" max="200" dir="ltr" style="max-width:110px" aria-label="سقف ساعتی"><button class="pri" id="ais">ذخیره</button></div></div></section>
 <section id="v-content" class="hide">
  <div class="cd"><h2>متن صفحهٔ اصلی</h2><input id="ht" placeholder="تیتر اصلی (خالی = بدون تغییر)" aria-label="تیتر"><div style="height:8px"></div><textarea id="hs" rows="2" placeholder="توضیح زیر تیتر (خالی = بدون تغییر)" aria-label="توضیح"></textarea></div>
  <div class="cd"><h2>اعلان بالای سایت</h2><label class="row"><input type="checkbox" id="bo" style="width:20px"><span>نمایش اعلان</span></label><div style="height:8px"></div><textarea id="bt" rows="2" maxlength="200" placeholder="متن اعلان" aria-label="متن اعلان"></textarea>
@@ -89,7 +94,7 @@ function show(a){$('login').classList.toggle('hide',a);$('app').classList.toggle
 var fa=new Intl.NumberFormat('fa-IR');function d1(t){return new Date(t).toLocaleDateString('fa-IR')}function d2(t){return new Date(t).toLocaleString('fa-IR',{dateStyle:'short',timeStyle:'short'})}
 var C={banner:{},hero:{},faq:[],hidden:[]},TK=[],US=[],VIEW='dash',TF='all',SEL=null,TD=null,dirty=false,lastWait=-1;
 var ST={new:'جدید',open:'در حال بررسی',done:'بسته‌شده'};
-var PAGES=[['dash','داشبورد'],['inbox','پشتیبانی'],['users','کاربران'],['content','محتوا'],['coins','ارزها'],['sec','امنیت']];
+var PAGES=[['dash','داشبورد'],['inbox','پشتیبانی'],['users','کاربران'],['content','محتوا'],['coins','ارزها'],['cm','مدیریت ارزها'],['ai','هوش مصنوعی'],['sec','امنیت']];
 function waiting(){return TK.filter(function(t){return t.status!=='done'&&t.last_author!=='admin'})}
 function setDirty(v){dirty=v;$('bar').classList.toggle('hide',!(v&&(VIEW==='content'||VIEW==='coins')))}
 function nav(){var s=$('side'),b=$('bn');s.textContent='';b.textContent='';var n=waiting().length;
@@ -97,7 +102,7 @@ function nav(){var s=$('side'),b=$('bn');s.textContent='';b.textContent='';var n
   if(p[0]==='inbox'&&n)x.appendChild(h('span',{class:'bd',text:String(n)}));box.appendChild(x)})});
  document.title=(n?'('+n+') ':'')+'مرکز مدیریت تحلیل‌گرام'}
 function view(v){VIEW=v;PAGES.forEach(function(p){$('v-'+p[0]).classList.toggle('hide',p[0]!==v)});$('pt').textContent=PAGES.filter(function(p){return p[0]===v})[0][1];
- hdr();nav();setDirty(dirty);if(v==='users')loadUs();if(v==='inbox')il();if(v==='dash')dash();if(v==='sec')secLoad();scrollTo(0,0)}
+ hdr();nav();setDirty(dirty);if(v==='users')loadUs();if(v==='inbox')il();if(v==='dash')dash();if(v==='sec')secLoad();if(v==='cm')cmLoad();if(v==='ai')aiLoad();scrollTo(0,0)}
 $('th').onclick=$('th2').onclick=function(){var r=document.documentElement,n=r.dataset.theme==='dark'?'light':'dark';r.dataset.theme=n;try{localStorage.setItem('th',n)}catch(e){}};
 $('go').onclick=function(){$('lm').textContent='';$('go').disabled=true;api('login',{method:'POST',body:{password:$('pw').value,code:$('pc').value}}).then(function(j){$('go').disabled=false;
  if(j.need2fa){$('pc').classList.remove('hide');$('pc').focus();$('lm').textContent='کد برنامهٔ احراز هویت را وارد کن.';return}
@@ -154,8 +159,22 @@ function refresh(){return api('inbox').then(function(a){TK=a;var n=waiting().len
 /* users */
 function ul(){var L=$('ul'),q=$('uq').value.trim().toLowerCase();L.textContent='';var a=US.filter(function(u){return!q||(u.username+u.email).toLowerCase().indexOf(q)>=0});$('uc').textContent=fa.format(US.length)+' کاربر';
  if(!a.length){L.textContent='کاربری نیست.';return}
- a.forEach(function(u){L.appendChild(h('div',{class:'tr'},[h('div',{class:'row'},[h('b',{text:u.username}),h('span',{class:'mu',dir:'ltr',text:u.email}),h('span',{class:'sp'}),h('button',{class:'sm dn',text:'حذف',onclick:function(){if(confirm('کاربر '+u.username+' و هشدارهایش حذف شود؟ تیکت‌هایش می‌ماند.'))api('users?id='+u.id,{method:'DELETE'}).then(function(){US=US.filter(function(x){return x!==u});ul();toast('حذف شد')})}})]),h('p',{text:'ثبت‌نام: '+d1(u.created)+' · تیکت‌ها: '+fa.format(u.tickets)})]))})}
+ a.forEach(function(u){L.appendChild(h('div',{class:'tr'},[h('div',{class:'row'},[h('b',{text:u.username}),h('span',{class:'mu',dir:'ltr',text:u.email}),h('span',{class:'sp'}),h('span',{class:'mu',text:fa.format(u.tickets||0)+' تیکت · '+fa.format(u.alerts||0)+' هشدار'}),h('button',{class:'sm',text:'خروج اجباری',onclick:function(){api('users',{method:'POST',body:{id:u.id}}).then(function(){toast('نشست‌های کاربر بسته شد')})}}),h('button',{class:'sm dn',text:'حذف',onclick:function(){if(confirm('کاربر '+u.username+' و هشدارهایش حذف شود؟ تیکت‌هایش می‌ماند.'))api('users?id='+u.id,{method:'DELETE'}).then(function(){US=US.filter(function(x){return x!==u});ul();toast('حذف شد')})}})]),h('p',{text:'ثبت‌نام: '+d1(u.created)+' · تیکت‌ها: '+fa.format(u.tickets)})]))})}
 function loadUs(){return api('users').then(function(a){US=a;ul();if(VIEW==='dash')dash()}).catch(function(){})}$('uq').oninput=ul;
+
+/* ارزها + هوش مصنوعی + CSV */
+var BASE=['BTC','ETH','USDT','BNB','XRP','SOL','DOGE','TRX','ADA','TON','AVAX','SHIB','LINK','DOT','LTC','BCH','UNI','NEAR','ATOM','ETC','SUI','PEPE','NOT','AAVE'],CM={add:[],hide:[],names:{}};
+function cmSave(m){return fetch('/api/coins',{method:'PUT',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(CM)}).then(function(r){if(r.status===401){show(false);throw 0}if(!r.ok)throw 1;return r.json()}).then(function(j){CM=j.coins;cmDraw();if(m)toast(m)}).catch(function(e){if(e!==0)toast('ذخیره نشد')})}
+function cmRow(x,bs){return h('div',{class:'tr'},[h('div',{class:'row'},[h('b',{dir:'ltr',text:x}),h('span',{class:'mu',text:CM.names[x]||''}),h('span',{class:'sp'})].concat(bs))])}
+function cmDraw(){var L=$('cml'),H=$('cmh');L.textContent='';H.textContent='';var ls=BASE.filter(function(x){return CM.hide.indexOf(x)<0}).concat(CM.add.filter(function(x){return BASE.indexOf(x)<0}));$('cmn').textContent=fa.format(ls.length)+' ارز';
+ ls.forEach(function(x){L.appendChild(cmRow(x,[h('button',{class:'sm',text:'نام',onclick:function(){var n=prompt('نام فارسی '+x,CM.names[x]||'');if(n===null)return;n=n.trim();if(n)CM.names[x]=n;else delete CM.names[x];cmSave('ذخیره شد')}}),h('button',{class:'sm dn',text:'حذف',onclick:function(){if(!confirm(x+' از سایت حذف شود؟'))return;CM.add=CM.add.filter(function(y){return y!==x});if(BASE.indexOf(x)>=0&&CM.hide.indexOf(x)<0)CM.hide.push(x);cmSave('حذف شد')}})]))});
+ if(!CM.hide.length)H.textContent='موردی نیست.';CM.hide.forEach(function(x){H.appendChild(cmRow(x,[h('button',{class:'sm',text:'بازگردانی',onclick:function(){CM.hide=CM.hide.filter(function(y){return y!==x});cmSave('برگردانده شد')}})]))})}
+function cmLoad(){fetch('/api/coins',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json()}).then(function(c){CM={add:c.add||[],hide:c.hide||[],names:c.names||{}};cmDraw()}).catch(function(){toast('بارگذاری نشد')})}
+$('cma').onclick=function(){var x=$('cms').value.trim().toUpperCase(),n=$('cmm').value.trim();if(!/^[A-Z0-9]{2,10}$/.test(x)){toast('نماد فقط حرف انگلیسی و عدد باشد');return}if(n&&!/^[\p{L}\p{N} \u200c.\-]{1,30}$/u.test(n)){toast('نام فقط حروف، عدد و فاصله');return}
+ CM.hide=CM.hide.filter(function(y){return y!==x});if(BASE.indexOf(x)<0&&CM.add.indexOf(x)<0)CM.add.push(x);if(n)CM.names[x]=n;cmSave('اضافه شد').then(function(){$('cms').value='';$('cmm').value=''})};
+function aiLoad(){api('ai').then(function(a){$('aio').checked=a.on;$('aih').value=a.hourly;var k=$('aik');k.textContent='';[['درخواست امروز',fa.format(a.today)+' از '+fa.format(a.cap)],['وضعیت',a.on?'فعال':'خاموش']].forEach(function(x){k.appendChild(h('div',{class:'cd'},[h('div',{class:'mu',text:x[0]}),h('b',{text:x[1]})]))})}).catch(function(){})}
+$('ais').onclick=function(){api('ai',{method:'PUT',body:{on:$('aio').checked,hourly:$('aih').value}}).then(function(){toast('ذخیره شد');aiLoad()}).catch(function(){toast('ذخیره نشد')})};
+$('ucsv').onclick=function(){var q=function(v){v=String(v==null?'':v);if(/^[=+\-@]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"'},t='\ufeffusername,email,created,tickets,alerts\n'+US.map(function(u){return[u.username,u.email,new Date(u.created).toISOString(),u.tickets,u.alerts].map(q).join(',')}).join('\n'),a=h('a',{href:URL.createObjectURL(new Blob([t],{type:'text/csv'})),download:'users.csv'});document.body.appendChild(a);a.click();a.remove()};
 
 /* content + coins */
 var COL=['#0fae78','#2563eb','#e5485a','#f5b50a','#7c3aed'];
