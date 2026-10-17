@@ -1,4 +1,4 @@
-import {json,userId,hashPw,checkPw} from '../../_auth.js';
+import {json,userId,hashPw,checkPw,rlInc,setUserCookie} from '../../_auth.js';
 const clip=(s,n)=>String(s==null?'':s).trim().slice(0,n);
 const SYM=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);
 export async function onRequest({request,env,params}){
@@ -11,10 +11,11 @@ export async function onRequest({request,env,params}){
   if(p[0]==='password'&&m==='POST'){
     const nw=String(b.new||'');
     if(nw.length<8||nw.length>72)return json({error:'رمز جدید باید ۸ تا ۷۲ کاراکتر باشد.'},400);
+    if((await rlInc(env,'pw:'+id,900))>5)return json({error:'تلاش‌های زیاد؛ ۱۵ دقیقه بعد دوباره امتحان کن.'},429);
     await new Promise(r=>setTimeout(r,400));
     if(!(await checkPw(String(b.old||''),me.pw)))return json({error:'رمز فعلی اشتباه است.'},400);
-    await db.prepare('UPDATE users SET pw=? WHERE id=?').bind(await hashPw(nw),id).run();
-    return json({ok:true});
+    await db.prepare('UPDATE users SET pw=?, sv=COALESCE(sv,0)+1 WHERE id=?').bind(await hashPw(nw),id).run();
+    return json({ok:true},200,{'set-cookie':await setUserCookie(env,id)});
   }
   if(p[0]==='favs'){
     if(m==='GET'){let l=[];try{l=JSON.parse(me.favs||'[]')}catch(e){}return json(l)}
@@ -53,7 +54,7 @@ export async function onRequest({request,env,params}){
     if(m==='GET')return json((await db.prepare('SELECT id,coin,dir,price,cur,done FROM alerts WHERE user_id=? ORDER BY id DESC LIMIT 50').bind(id).all()).results);
     if(m==='POST'&&!p[1]){
       const coin=SYM(b.coin||''),price=+b.price,dir=b.dir==='lte'?'lte':'gte',cur=b.cur==='USDT'?'USDT':'IRT';
-      if(!coin||!(price>0))return json({error:'اطلاعات هشدار درست نیست.'},400);
+      if(!coin||!(price>0&&price<1e12))return json({error:'اطلاعات هشدار درست نیست.'},400);
       const n=await db.prepare('SELECT COUNT(*) c FROM alerts WHERE user_id=? AND done=0').bind(id).first();
       if(n.c>=20)return json({error:'حداکثر ۲۰ هشدار فعال می‌توانی داشته باشی.'},400);
       const r=await db.prepare('INSERT INTO alerts (user_id,coin,dir,price,cur,done,created) VALUES (?,?,?,?,?,0,?)').bind(id,coin,dir,price,cur,Date.now()).run();
