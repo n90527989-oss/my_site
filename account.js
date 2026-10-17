@@ -113,11 +113,11 @@ function toggleMenu(){if(document.getElementById('ac-mn')){closeMenu();return}
   m.style.top=(r.bottom+8)+'px';m.style.left=Math.max(8,Math.min(r.left,document.documentElement.clientWidth-276))+'px';
   function it(txt,fn,cnt){return h('button',{class:'mi',role:'menuitem',onclick:function(){closeMenu();fn()}},[txt,cnt?h('span',{class:'cnt',text:String(cnt)}):null])}
   if(!U){m.appendChild(h('div',{class:'hd2'},[h('div',{class:'av',text:'؟'}),h('div',{},[h('b',{text:'خوش آمدی'}),h('div',{class:'mu',text:'برای دسترسی به امکانات وارد شو'})])]));
-    m.appendChild(it('ورود',function(){showAuth('login')}));m.appendChild(it('ثبت‌نام',function(){showAuth('register')}))}
+    m.appendChild(it('ورود',function(){showAuth('login')}));m.appendChild(it('ثبت‌نام',function(){showAuth('register')}));m.appendChild(it('ورود مدیر',showAdminLogin))}
   else{m.appendChild(h('div',{class:'hd2'},[h('div',{class:'av',text:U.username.charAt(0).toUpperCase()}),h('div',{style:'min-width:0'},[h('b',{text:U.username}),h('div',{class:'mu',dir:'ltr',style:'overflow:hidden;text-overflow:ellipsis',text:D.prof?D.prof.email:''})])]));
     [['نمای کلی','ov'],['لیست پیگیری','wl'],['هشدارها','al'],['پشتیبانی','sup',nNew()],['حساب و امنیت','pf']].forEach(function(x){m.appendChild(it(x[0],function(){openPanel(x[1])},x[2]))});
     m.appendChild(it('ورود با حساب دیگر',function(){switchTo('login')}));m.appendChild(it('ساخت حساب جدید',function(){switchTo('register')}));
-    m.appendChild(it('خروج',logout))}
+    m.appendChild(it('ورود مدیر',showAdminLogin));m.appendChild(it('خروج',logout))}
   document.body.appendChild(m);var f=m.querySelector('button');if(f)f.focus()}
 document.addEventListener('click',function(e){var m=document.getElementById('ac-mn');if(m&&!m.contains(e.target))closeMenu()});
 addEventListener('resize',closeMenu);
@@ -146,7 +146,53 @@ function showAuth(mode){MODE=mode||MODE;var o=document.getElementById('ac-au');i
   Object.keys(f).forEach(function(k){f[k].onkeydown=function(e){if(e.key==='Enter')submit()}});
   box.appendChild(b);box.appendChild(err);
   box.appendChild(h('div',{class:'mu',style:'text-align:center'},[MODE==='login'?'حساب نداری؟ ':'حساب داری؟ ',h('a',{href:'#',style:'color:var(--ac,#1bc48a)',text:MODE==='login'?'ثبت‌نام':'ورود',onclick:function(e){e.preventDefault();showAuth(MODE==='login'?'register':'login')}})]));
+  box.appendChild(h('div',{class:'mu',style:'text-align:center;margin-top:10px'},[h('a',{href:'#',style:'color:var(--ac,#1bc48a)',text:'ورود مدیر',onclick:function(e){e.preventDefault();showAdminLogin()}})]));
   document.body.appendChild(ov);f.username.focus()}
+
+/* مدیر: مدیریت ارزها */
+var ADM=false,NAMEOK=/^[\p{L}\p{N} \u200c.\-]{1,30}$/u;
+function admFlag(v){try{if(v)localStorage.setItem('adm1','1');else localStorage.removeItem('adm1')}catch(e){}}
+function admBtn(){var b=document.getElementById('ac-adb');if(!ADM){if(b)b.remove();return}if(b)return;
+  document.body.appendChild(h('button',{id:'ac-adb',type:'button',text:'⚙ مدیریت ارزها',style:'position:fixed;left:14px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:58;padding:10px 14px;border-radius:999px;border:0;font-weight:800;cursor:pointer;background:var(--ac,#1bc48a);color:#04110c;box-shadow:0 6px 20px rgba(0,0,0,.35)',onclick:openAdm}))}
+function admEnd(msg){ADM=false;admFlag(0);admBtn();var o=document.getElementById('ac-ad');if(o)o.remove();if(msg)toast(msg,4500)}
+function admOut(){api('admin/logout',{method:'POST'}).catch(function(){}).then(function(){admEnd('از حالت مدیر خارج شدی')})}
+function showAdminLogin(){var o=document.getElementById('ac-au');if(o)o.remove();
+  var err=h('div',{class:'er',role:'alert'}),box=h('div',{class:'cd',role:'dialog','aria-modal':'true','aria-label':'ورود مدیر',style:'width:100%;max-width:400px;margin:0;animation:acpop .2s'}),ov=h('div',{class:'ac-sh',id:'ac-au',onclick:function(e){if(e.target===ov)ov.remove()}},[box]);
+  var pw=h('input',{type:'password',placeholder:'رمز مدیر','aria-label':'رمز مدیر',autocomplete:'current-password',dir:'ltr'}),cd=h('input',{type:'text',placeholder:'کد ۶ رقمی ورود دومرحله‌ای','aria-label':'کد دومرحله‌ای',autocomplete:'one-time-code',inputmode:'numeric',maxlength:'6',dir:'ltr',style:'display:none'});
+  box.appendChild(h('div',{class:'rw2',style:'margin-bottom:12px'},[h('b',{style:'font-size:1.1rem',text:'ورود مدیر'}),h('span',{class:'sp2'}),h('button',{'aria-label':'بستن',text:'✕',onclick:function(){ov.remove()}})]));
+  box.appendChild(pw);box.appendChild(cd);
+  var b=h('button',{class:'p',style:'width:100%;padding:11px',text:'ورود',onclick:go});
+  function go(){err.textContent='';b.disabled=true;
+    api('admin/login',{method:'POST',body:{password:pw.value,code:cd.value}}).then(function(j){
+      if(j&&j.need2fa){cd.style.display='';cd.focus();err.textContent='کد برنامهٔ احراز هویت را هم وارد کن.';b.disabled=false;return}
+      ADM=true;admFlag(1);ov.remove();admBtn();toast('وارد حالت مدیر شدی');openAdm()
+    }).catch(function(e){err.textContent=(e&&e.error==='locked')?'تلاش بیش از حد؛ چند دقیقه بعد دوباره امتحان کن.':'رمز یا کد اشتباه است.';b.disabled=false})}
+  [pw,cd].forEach(function(i){i.onkeydown=function(e){if(e.key==='Enter')go()}});
+  box.appendChild(b);box.appendChild(err);document.body.appendChild(ov);pw.focus()}
+function openAdm(){var C=window.__coins;if(!C){toast('صفحه هنوز کامل بارگذاری نشده');return}
+  var st=C.cfg(),old=document.getElementById('ac-ad');if(old)old.remove();
+  var err=h('div',{class:'er',role:'alert'}),list=h('div',{style:'display:grid;gap:6px;margin-top:12px'}),hid=h('div',{style:'display:grid;gap:6px;margin-top:8px'}),cnt=h('span',{class:'mu'});
+  var box=h('div',{class:'cd',role:'dialog','aria-modal':'true','aria-label':'مدیریت ارزها',style:'width:100%;max-width:460px;margin:0;max-height:88vh;overflow:auto;animation:acpop .2s'}),ov=h('div',{class:'ac-sh',id:'ac-ad',onclick:function(e){if(e.target===ov)ov.remove()}},[box]);
+  var sy=h('input',{placeholder:'نماد انگلیسی، مثلاً ARB','aria-label':'نماد ارز',maxlength:'10',autocomplete:'off',dir:'ltr'}),nm=h('input',{placeholder:'نام فارسی (اختیاری)','aria-label':'نام فارسی',maxlength:'30',autocomplete:'off'});
+  function save(msg){err.textContent='';return api('coins',{method:'PUT',body:st}).then(function(j){st=j.coins;C.apply(st);draw();if(msg)toast(msg);return true}).catch(function(e){if(e&&e.error==='auth'){admEnd('نشست مدیر تمام شد؛ دوباره وارد شو');return false}err.textContent='ذخیره نشد؛ دوباره تلاش کن.';return false})}
+  function del(x){if(!confirm('«'+x+'» از سایت حذف شود؟'))return;st.add=st.add.filter(function(y){return y!==x});if(C.base.indexOf(x)>=0&&st.hide.indexOf(x)<0)st.hide.push(x);if(C.base.indexOf(x)<0)delete st.names[x];save('حذف شد')}
+  function back(x){st.hide=st.hide.filter(function(y){return y!==x});save('برگردانده شد')}
+  function ren(x){var n=prompt('نام فارسی '+x,C.name(x)||'');if(n===null)return;n=n.trim();if(n&&!NAMEOK.test(n)){err.textContent='نام فقط شامل حروف، عدد و فاصله باشد.';return}if(n)st.names[x]=n;else delete st.names[x];save('ذخیره شد')}
+  function add(){err.textContent='';var x=sy.value.trim().toUpperCase(),n=nm.value.trim();
+    if(!/^[A-Z0-9]{2,10}$/.test(x)){err.textContent='نماد فقط حرف انگلیسی و عدد باشد (۲ تا ۱۰ کاراکتر).';return}
+    if(n&&!NAMEOK.test(n)){err.textContent='نام فقط شامل حروف، عدد و فاصله باشد.';return}
+    if(C.shown(x)){err.textContent='این ارز همین حالا در سایت هست.';return}
+    if(!C.has(x)){err.textContent='این ارز در بازار تومانی بیت‌پین پیدا نشد؛ نماد را بررسی کن.';return}
+    st.hide=st.hide.filter(function(y){return y!==x});if(C.base.indexOf(x)<0&&st.add.indexOf(x)<0)st.add.push(x);if(n)st.names[x]=n;
+    save('اضافه شد').then(function(ok){if(ok){sy.value='';nm.value=''}})}
+  function row(x,btns){return h('div',{style:'display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--ed,#232d36);border-radius:10px'},[h('b',{dir:'ltr',text:x}),h('span',{style:'flex:1;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap',text:C.name(x)||''})].concat(btns))}
+  function draw(){list.textContent='';hid.textContent='';var ls=C.list();cnt.textContent=fa.format(ls.length)+' ارز در سایت';
+    ls.forEach(function(x){list.appendChild(row(x,[h('button',{type:'button','aria-label':'ویرایش نام '+x,text:'✎',onclick:function(){ren(x)}}),h('button',{type:'button','aria-label':'حذف '+x,text:'✕',onclick:function(){del(x)}})]))});
+    if(st.hide.length){hid.appendChild(h('div',{class:'mu',style:'margin-top:10px',text:'ارزهای حذف‌شده'}));st.hide.forEach(function(x){hid.appendChild(row(x,[h('button',{type:'button',text:'بازگردانی',onclick:function(){back(x)}})]))})}}
+  box.appendChild(h('div',{class:'rw2',style:'margin-bottom:10px'},[h('b',{style:'font-size:1.1rem',text:'مدیریت ارزها'}),h('span',{class:'sp2'}),h('button',{type:'button',text:'خروج مدیر',onclick:admOut}),h('button',{'aria-label':'بستن',text:'✕',onclick:function(){ov.remove()}})]));
+  box.appendChild(h('div',{style:'display:grid;gap:8px'},[sy,nm,h('button',{type:'button',class:'p',style:'width:100%;padding:10px',text:'افزودن ارز',onclick:add})]));
+  [sy,nm].forEach(function(i){i.onkeydown=function(e){if(e.key==='Enter')add()}});
+  box.appendChild(err);box.appendChild(h('div',{style:'margin-top:12px'},[cnt]));box.appendChild(list);box.appendChild(hid);draw();document.body.appendChild(ov)}
 
 /* پنل کاربری */
 function openPanel(s){if(!U){showAuth('login');return}SEC=s||SEC;TH=null;OPEN=true;
@@ -225,4 +271,5 @@ document.querySelectorAll('a[href="#/support"]').forEach(function(a){if(a.closes
 document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href="#/support"]');if(a){e.preventDefault();openPanel('sup')}},true);
 if(location.hash==='#/support')location.hash='#/';
 setFab();api('auth/me').then(function(j){U=j.user||null;setFab();load()}).catch(function(){});
+try{if(localStorage.getItem('adm1')==='1')api('admin/me').then(function(){ADM=true;admBtn()}).catch(function(){admFlag(0)})}catch(e){}
 })();
