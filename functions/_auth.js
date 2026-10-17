@@ -17,13 +17,20 @@ export async function checkPw(pw,stored){return eq(await hashPw(pw,stored.split(
 
 /* ---------- user session ---------- */
 export async function setUserCookie(env,id){
-  const exp=Date.now()+30*864e5,sig=hex(await mac(env.SESSION_SECRET,'u'+id+'.'+exp));
-  return `usr=${id}.${exp}.${sig}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`;
+  const r=await env.DB.prepare('SELECT sv FROM users WHERE id=?').bind(id).first(),sv=r?(+r.sv||0):0;
+  const exp=Date.now()+30*864e5,sig=hex(await mac(env.SESSION_SECRET,'u'+id+'.'+exp+'.'+sv));
+  return `usr=${id}.${exp}.${sv}.${sig}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`;
 }
+/* session = id.exp.version.sig ; the version (users.sv) rises on password change, which ends every older session.
+   Old cookies (id.exp.sig) are still accepted while the version is 0. */
 export async function userId(req,env){
-  const m=(req.headers.get('cookie')||'').match(/(?:^|; )usr=(\d+)\.(\d+)\.([0-9a-f]{64})/);
-  if(!m||+m[2]<Date.now()||!env.SESSION_SECRET)return 0;
-  return eq(hex(await mac(env.SESSION_SECRET,'u'+m[1]+'.'+m[2])),m[3])?+m[1]:0;
+  const c=req.headers.get('cookie')||'';
+  let m=c.match(/(?:^|; )usr=(\d+)\.(\d+)\.(\d+)\.([0-9a-f]{64})/),id,exp,sv,sig,msg;
+  if(m){id=m[1];exp=m[2];sv=+m[3];sig=m[4];msg='u'+id+'.'+exp+'.'+sv}
+  else{m=c.match(/(?:^|; )usr=(\d+)\.(\d+)\.([0-9a-f]{64})/);if(!m)return 0;id=m[1];exp=m[2];sv=0;sig=m[3];msg='u'+id+'.'+exp}
+  if(+exp<Date.now()||!env.SESSION_SECRET||!env.DB)return 0;
+  if(!eq(hex(await mac(env.SESSION_SECRET,msg)),sig))return 0;
+  try{const r=await env.DB.prepare('SELECT sv FROM users WHERE id=?').bind(+id).first();return r&&(+r.sv||0)===sv?+id:0}catch(e){return 0}
 }
 
 /* ---------- key/value (kv table) ---------- */
@@ -54,11 +61,12 @@ export async function slog(env,req,type,info){
   }catch(e){}
 }
 export async function rlGet(env,k,win){const r=await env.DB.prepare('SELECT n,t FROM rl WHERE k=?').bind(k).first();return r&&Date.now()-r.t<win*1000?r.n:0}
+/* atomic: one SQL statement counts the hit and returns the new count (no read-then-write race) */
 export async function rlInc(env,k,win){
-  const now=Date.now(),r=await env.DB.prepare('SELECT n,t FROM rl WHERE k=?').bind(k).first();
+  const now=Date.now(),w=win*1000;
   if(Math.random()<.02)await env.DB.prepare('DELETE FROM rl WHERE t<?').bind(now-864e5).run();
-  if(!r||now-r.t>=win*1000){await env.DB.prepare('INSERT OR REPLACE INTO rl (k,n,t) VALUES (?,1,?)').bind(k,now).run();return 1}
-  await env.DB.prepare('UPDATE rl SET n=n+1 WHERE k=?').bind(k).run();return r.n+1;
+  const r=await env.DB.prepare('INSERT INTO rl (k,n,t) VALUES (?,1,?) ON CONFLICT(k) DO UPDATE SET n=CASE WHEN excluded.t-rl.t>=? THEN 1 ELSE rl.n+1 END, t=CASE WHEN excluded.t-rl.t>=? THEN excluded.t ELSE rl.t END RETURNING n').bind(k,now,w,w).first();
+  return r?r.n:1;
 }
 export const rlClear=(env,k)=>env.DB.prepare('DELETE FROM rl WHERE k=?').bind(k).run();
 /* counts this request; true when the caller went over `max` inside `win` seconds */
